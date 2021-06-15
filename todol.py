@@ -32,12 +32,14 @@ todo_dic = {
 today = date.today().strftime("%Y-%m-%d")
 today_file_path = os.path.join(dir_path, today) + ".json"
 
-files_to_check = os.listdir(dir_path)
-todo_all_dic = {}
+def load_todo_all():
+    files_to_check = os.listdir(dir_path)
+    todo_all_dic = {}
 
-for f in files_to_check:
+    for f in files_to_check:
         with open(os.path.join(dir_path, f),"r") as f_read:
             todo_all_dic[f] = json.load(f_read)
+    return(todo_all_dic)
 
 
 def print_todo(todo, print_all=False):
@@ -59,8 +61,10 @@ def print_todo_all(todo_all_dic, print_all=False):
             if not v["done"] or print_all:
                 print_flag = True
                 checkbox = "x" if v["done"] else " "
-                print_output.append(("(" + cl_id +i+ cl_reset + ") ").rjust(5," ") + \
-                    "[" + cl_checkbox + checkbox + cl_reset + "] " + \
+                print_output.append(("(" + cl_id +i+ cl_reset + ")") + \
+                    ("  " if len(i) < 2 else " ") + \
+                    (" " if len(i) < 3 else "") + \
+                    ("[" + cl_checkbox + checkbox + cl_reset + "] " if print_all else "")+ \
                      (("[" + cl_tag + v["tag"] + cl_reset + "] ") if v["tag"] != "" else "") + \
                      (("[" + cl_deadline + v["deadline"] + cl_reset + "] ") if
                          v["deadline"] != "" else "") + \
@@ -70,7 +74,7 @@ def print_todo_all(todo_all_dic, print_all=False):
             for i in print_output:
                 print(i)
 
-def mark_as_done(td_id):
+def mark_todo(td_id, action="done"):
     files_to_check = os.listdir(dir_path)
     ids = {} 
     filename = ""
@@ -86,20 +90,30 @@ def mark_as_done(td_id):
                 break
     if file_count > 1:
         print("There is multiple files with this id")
-        print("Task in " + filename + " will be marked")
+        if action=="done":
+            print("Task in " + filename + " will be marked")
+        elif action=="deleted":
+            print("Task in " + filename + " will be deleted")
     if filename == "": 
         print("There is no todo with id " + str(td_id))
     else:
         print(filename)
-    logging.debug("Marking " + str(td_id) + " in file " + filename)
-    print("Marked " + str(td_id) + " in file " + filename)
+    logging.debug("Marking " + action + str(td_id) + " in file " + filename)
+    if action=="done":
+        print("Marked " + str(td_id) + " in file " + filename)
+    elif action=="deleted":
+        print("Deleted" + str(td_id) + " in file " + filename)
 
     with open(os.path.join(dir_path, filename), "r") as file:
         file_data = json.load(file)
 
     with open(os.path.join(dir_path, filename), "w") as file:
-        file_data[str(td_id)]["done"] = True
+        if action == "done":
+            file_data[str(td_id)]["done"] = True
+        elif action == "deleted":
+            file_data.pop(str(td_id))
         json.dump(file_data, file, indent = 4)
+
 
 def get_last_id():
     files_to_check = os.listdir(dir_path)
@@ -171,20 +185,80 @@ def add(deadline, message, tag, full_mode):
 
     write_todo(new_todo, today_file_path)
 
+@main.command()
+@click.argument("td_id", required=True)
+def delete(td_id):
+   """Mark ID as done"""
+   mark_todo(td_id, action="deleted")
 
 
 @main.command()
 @click.argument("td_id", required=True)
 def done(td_id):
    """Mark ID as done"""
-   mark_as_done(td_id)
+   mark_todo(td_id, action="done")
 
 @main.command()
 @click.option("--all", "print_all", is_flag=True,
         help="Print all todos, even unfinished once")
 def p(print_all):
    """Print todos"""
+   todo_all_dic = load_todo_all()
    print_todo_all(todo_all_dic, print_all)
+
+@main.command()
+@click.option("--all", "print_all", is_flag=True,
+        help="Print all todos, even unfinished once")
+@click.option("--deadline", "deadline", is_flag=True,
+        help="Print all todos, even unfinished once")
+@click.option("--tag", default="",
+        help="Print all todos with this tag")
+@click.option("--word", default="", 
+        help="Print all todos, that contain this word")
+def search(print_all, word, tag, deadline):
+   todo_all_dic = load_todo_all()
+   todo_selected_dic = {} 
+   if tag != "": 
+        for f, td in todo_all_dic.items():
+            td_tmp = {} 
+            for i, v in td.items():
+                if v["tag"] == tag:
+                   td_tmp[i] = v
+            todo_selected_dic[f] = td_tmp
+    
+   if word != "": 
+       if len(todo_selected_dic) > 0:
+           todo_all_dic = todo_selected_dic
+       for f, td in todo_all_dic.items():
+           td_tmp = {} 
+           for i, v in td.items():
+               if bool(re.search(word, v["message"])):
+                  td_tmp[i] = v
+           todo_selected_dic[f] = td_tmp
+
+   if deadline: 
+       if len(todo_selected_dic) > 0:
+           todo_all_dic = todo_selected_dic
+       for f, td in todo_all_dic.items():
+           td_tmp = {} 
+           for i, v in td.items():
+               if v["deadline"] != "":
+                  td_tmp[i] = v
+           todo_selected_dic[f] = td_tmp
+
+   """Print todos"""
+   print_todo_all(todo_selected_dic, print_all)
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__ == "__main__":
     main()
