@@ -4,6 +4,7 @@ import sys
 import json
 import re
 import logging
+import readline
 from datetime import date
 from colored import fg, attr
 
@@ -20,6 +21,7 @@ logging.basicConfig(filename='./app.log', filemode='w',
         format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 dir_path = "./todo"
+
 todo_dic = {
         "id": "",
         "date": "",
@@ -28,9 +30,11 @@ todo_dic = {
         "tag": "",
         "message": ""
         }
+date_format = "%Y-%m-%d"
 
-today = date.today().strftime("%Y-%m-%d")
+today = date.today().strftime(date_format)
 today_file_path = os.path.join(dir_path, today) + ".json"
+
 
 def load_todo_all():
     files_to_check = os.listdir(dir_path)
@@ -40,6 +44,16 @@ def load_todo_all():
         with open(os.path.join(dir_path, f),"r") as f_read:
             todo_all_dic[f] = json.load(f_read)
     return(todo_all_dic)
+
+
+def input_prefill(prompt, text):
+    def hook():
+        readline.insert_text(text)
+        readline.redisplay()
+    readline.set_pre_input_hook(hook)
+    result = input(prompt)
+    readline.set_pre_input_hook()
+    return result
 
 
 def print_todo(todo, print_all=False):
@@ -74,7 +88,7 @@ def print_todo_all(todo_all_dic, print_all=False):
             for i in print_output:
                 print(i)
 
-def mark_todo(td_id, action="done"):
+def find_filename_by_id(td_id):
     files_to_check = os.listdir(dir_path)
     ids = {} 
     filename = ""
@@ -88,6 +102,11 @@ def mark_todo(td_id, action="done"):
                 filename = i
                 file_count += 1
                 break
+    return filename, file_count
+
+
+def mark_todo(td_id, action="done"):
+    filename, file_count = find_filename_by_id(td_id)
     if file_count > 1:
         print("There is multiple files with this id")
         if action=="done":
@@ -96,13 +115,13 @@ def mark_todo(td_id, action="done"):
             print("Task in " + filename + " will be deleted")
     if filename == "": 
         print("There is no todo with id " + str(td_id))
-    else:
-        print(filename)
+        return()
+    
     logging.debug("Marking " + action + str(td_id) + " in file " + filename)
     if action=="done":
         print("Marked " + str(td_id) + " in file " + filename)
     elif action=="deleted":
-        print("Deleted" + str(td_id) + " in file " + filename)
+        print("Deleted " + str(td_id) + " in file " + filename)
 
     with open(os.path.join(dir_path, filename), "r") as file:
         file_data = json.load(file)
@@ -114,6 +133,31 @@ def mark_todo(td_id, action="done"):
             file_data.pop(str(td_id))
         json.dump(file_data, file, indent = 4)
 
+
+def edit_todo(td_id):
+    filename, file_count = find_filename_by_id(td_id)
+    if file_count > 1:
+        print("There is multiple files with this id. Delete duplicates and try again")
+        return()
+    if filename == "": 
+        print("There is no todo with id " + str(td_id))
+        return()
+   
+    logging.debug("Editing" + str(td_id) + " in file " + filename)
+    print("Editing " + str(td_id) + " in file " + filename)
+
+    with open(os.path.join(dir_path, filename), "r") as file:
+        edited_todo = json.load(file)[td_id]
+
+    logging.debug(edited_todo)
+
+    edited_todo["deadline"] = input_prefill("Edit deadline: ",edited_todo["deadline"]) 
+    edited_todo["tag"] = input_prefill("Edit tag: ",edited_todo["tag"]) 
+    edited_todo["message"] = input_prefill("Edit message: ",edited_todo["message"]) 
+
+    logging.debug(edited_todo)
+
+    write_todo(edited_todo, today_file_path)
 
 def get_last_id():
     files_to_check = os.listdir(dir_path)
@@ -137,8 +181,15 @@ def write_todo(new_todo, filename):
         print("File " + filename + " created")
     with open(filename, "w") as file:
         file_data.setdefault(new_todo["id"], new_todo)
+        file_data[new_todo["id"]] = new_todo
         json.dump(file_data, file, indent = 4)
         logging.debug("New todo: writing - "+filename)
+
+
+def print_todo_load(print_all=False):
+   todo_all_dic = load_todo_all()
+   print_todo_all(todo_all_dic, print_all)
+
 
 @click.group()
 def main():
@@ -147,11 +198,11 @@ def main():
     """
 
 @main.command()
-@click.option("--dir_path", type=click.Path(),
-        default=".", 
-        help="Deadline till the taks should be done (YYYY-MM-DD)")
-def init(dir_path):
-    pass
+@click.option("--all", "print_all", is_flag=True,
+        help="Print all todos, even unfinished once")
+def p(print_all):
+   """Print todos"""
+   print_todo_load(print_all)
 
 
 @main.command()
@@ -184,27 +235,28 @@ def add(deadline, message, tag, full_mode):
     logging.debug(new_todo)
 
     write_todo(new_todo, today_file_path)
+    print_todo_load(False)
 
 @main.command()
 @click.argument("td_id", required=True)
 def delete(td_id):
-   """Mark ID as done"""
+   """Delete ID"""
    mark_todo(td_id, action="deleted")
-
+   print_todo_load(False)
 
 @main.command()
 @click.argument("td_id", required=True)
 def done(td_id):
    """Mark ID as done"""
    mark_todo(td_id, action="done")
+   print_todo_load(False)
 
 @main.command()
-@click.option("--all", "print_all", is_flag=True,
-        help="Print all todos, even unfinished once")
-def p(print_all):
-   """Print todos"""
-   todo_all_dic = load_todo_all()
-   print_todo_all(todo_all_dic, print_all)
+@click.argument("td_id", required=True)
+def edit(td_id):
+   """Edit ID"""
+   edit_todo(td_id)
+   print_todo_load(False)
 
 @main.command()
 @click.option("--all", "print_all", is_flag=True,
@@ -248,16 +300,6 @@ def search(print_all, word, tag, deadline):
 
    """Print todos"""
    print_todo_all(todo_selected_dic, print_all)
-
-
-
-
-
-
-
-
-
-
 
 
 if __name__ == "__main__":
