@@ -7,20 +7,17 @@ import logging
 import readline
 from datetime import date
 from colored import fg, attr
+from .config import load_config
 
 logging.basicConfig(filename='./app.log', filemode='w',
         format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
-try:
-    with open(os.path.join(sys.path[0],"config.json"), "r") as config_file:
-        config = json.load(config_file)
-except FileNotFoundError:
-    print("There is no config file in the folder")
-    sys.exit()
+config = load_config()
 
 dir_path = config["dir_path"]
 date_format = config["date_format"]
 print_after_change = config["print_after_change"]
+show_date = config["show_date"]
 cl_header = fg(config["cl_header"])
 cl_checkbox = fg(config["cl_checkbox"])
 cl_tag = fg(config["cl_tag"])
@@ -91,7 +88,8 @@ def print_todo_all(todo_all_dic, print_all=False):
                          v["deadline"] != "" else "") + \
                      cl_message + v["message"] + cl_reset)
         if print_flag:
-            print(cl_header + re.sub("\.json","", td) + cl_reset)
+            if show_date:
+                print(cl_header + re.sub("\.json","", td) + cl_reset)
             for i in print_output:
                 print(i)
 
@@ -125,8 +123,8 @@ def mark_todo(td_id, action="done"):
         return()
     
     logging.debug("Marking " + action + str(td_id) + " in file " + filename)
-    if action=="done":
-        print("Marked " + str(td_id) + " in file " + filename)
+    if action=="done" or action == "undone":
+        print("Marked " + action + ": " + str(td_id) + " in file " + filename)
     elif action=="deleted":
         print("Deleted " + str(td_id) + " in file " + filename)
 
@@ -136,6 +134,8 @@ def mark_todo(td_id, action="done"):
     with open(os.path.join(dir_path, filename), "w") as file:
         if action == "done":
             file_data[str(td_id)]["done"] = True
+        if action == "undone":
+            file_data[str(td_id)]["done"] = False 
         elif action == "deleted":
             file_data.pop(str(td_id))
         json.dump(file_data, file, indent = 4)
@@ -164,7 +164,28 @@ def edit_todo(td_id):
 
     logging.debug(edited_todo)
 
-    write_todo(edited_todo, today_file_path)
+    write_todo(edited_todo, os.path.join(dir_path, filename))
+
+
+def readd_todo(td_id):
+    filename, file_count = find_filename_by_id(td_id)
+    if file_count > 1:
+        print("There is multiple files with this id. Delete duplicates and try again")
+        return()
+    if filename == "": 
+        print("There is no todo with id " + str(td_id))
+        return()
+
+    logging.debug("Adding in today " + str(td_id) + " in file " + filename)
+    print("Adding in today " + str(td_id) + " in file " + today_file_path )
+
+    with open(os.path.join(dir_path, filename), "r") as file:
+        readded_todo = json.load(file)[td_id]
+
+    readded_todo["id"] = str(get_last_id() + 1)
+
+    write_todo(readded_todo, today_file_path)
+
 
 def get_last_id():
     files_to_check = os.listdir(dir_path)
@@ -196,6 +217,9 @@ def write_todo(new_todo, filename):
 def print_todo_load(print_all=False):
    todo_all_dic = load_todo_all()
    print_todo_all(todo_all_dic, print_all)
+if not os.path.exists(dir_path):
+    print("There is no directory "+dir_path + ". Please change config.json.")
+    sys.exit()
 
 
 @click.group()
@@ -267,10 +291,29 @@ def done(td_id):
 
 @main.command()
 @click.argument("td_id", nargs=-1, required=True)
+def undone(td_id):
+   """[ID] - mark as undone"""
+   for i in td_id:
+       mark_todo(i, action="undone")
+   if print_after_change:
+       print_todo_load(False)
+
+@main.command()
+@click.argument("td_id", nargs=-1, required=True)
 def edit(td_id):
    """[ID] - edit selected todo"""
    for i in td_id:
        edit_todo(i)
+   if print_after_change:
+       print_todo_load(False)
+
+@main.command()
+@click.argument("td_id", nargs=-1, required=True)
+def readd(td_id):
+   """[ID] - add to today"""
+   for i in td_id:
+       readd_todo(i)
+       mark_todo(i, action="deleted")
    if print_after_change:
        print_todo_load(False)
 
