@@ -8,19 +8,27 @@ import readline
 from datetime import date
 from colored import fg, attr
 
-cl_header = fg(72)
-cl_checkbox = fg(125)
-cl_tag = fg(125)
-cl_deadline = fg(108)
-cl_message = fg(253)
-cl_id = fg(78)
-cl_sepparator = fg(166)
-cl_reset = attr('reset')
-
 logging.basicConfig(filename='./app.log', filemode='w',
         format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
-dir_path = "./todo"
+try:
+    with open(os.path.join(sys.path[0],"config.json"), "r") as config_file:
+        config = json.load(config_file)
+except FileNotFoundError:
+    print("There is no config file in the folder")
+    sys.exit()
+
+dir_path = config["dir_path"]
+date_format = config["date_format"]
+print_after_change = config["print_after_change"]
+cl_header = fg(config["cl_header"])
+cl_checkbox = fg(config["cl_checkbox"])
+cl_tag = fg(config["cl_tag"])
+cl_deadline = fg(config["cl_deadline"])
+cl_message = fg(config["cl_message"])
+cl_id = fg(config["cl_id"])
+cl_sepparator = fg(config["cl_sepparator"])
+cl_reset = attr('reset')
 
 todo_dic = {
         "id": "",
@@ -30,7 +38,6 @@ todo_dic = {
         "tag": "",
         "message": ""
         }
-date_format = "%Y-%m-%d"
 
 today = date.today().strftime(date_format)
 today_file_path = os.path.join(dir_path, today) + ".json"
@@ -209,14 +216,15 @@ def p(print_all):
 # @click.option("--message", "-m", multiple=True, 
 #         help="input message")
 @click.option("--full_mode", "--f", is_flag=True, 
-        help="Use full add mode")
+        help="Use interactive mode")
 @click.option("--deadline", default="",
-        help="Deadline till the taks should be done (YYYY-MM-DD)")
+        help="Deadline till the task should be done (YYYY-MM-DD)")
 @click.option("--tag", default="",
         help="tag")
 @click.argument("message", required=False, default="")
 def add(deadline, message, tag, full_mode):
-    """Add todo"""
+    """add [TEXT], --tag, --deadline or --full_mode, --f 
+    for interactive mode """
     if full_mode:
         message = input("Write message:")
         tag = input("Tag:")
@@ -235,28 +243,36 @@ def add(deadline, message, tag, full_mode):
     logging.debug(new_todo)
 
     write_todo(new_todo, today_file_path)
-    print_todo_load(False)
+    if print_after_change:
+        print_todo_load(False)
 
 @main.command()
-@click.argument("td_id", required=True)
+@click.argument("td_id", nargs=-1, required=True)
 def delete(td_id):
-   """Delete ID"""
-   mark_todo(td_id, action="deleted")
-   print_todo_load(False)
+   """[ID] - delete """
+   if input("Do you want to delete todo: " + ",".join(td_id) + "? (y/n)") == "y":
+       for i in td_id:
+            mark_todo(i, action="deleted")
+       if print_after_change:
+            print_todo_load(False)
 
 @main.command()
-@click.argument("td_id", required=True)
+@click.argument("td_id", nargs=-1, required=True)
 def done(td_id):
-   """Mark ID as done"""
-   mark_todo(td_id, action="done")
-   print_todo_load(False)
+   """[ID] - mark as done"""
+   for i in td_id:
+       mark_todo(i, action="done")
+   if print_after_change:
+       print_todo_load(False)
 
 @main.command()
-@click.argument("td_id", required=True)
+@click.argument("td_id", nargs=-1, required=True)
 def edit(td_id):
-   """Edit ID"""
-   edit_todo(td_id)
-   print_todo_load(False)
+   """[ID] - edit selected todo"""
+   for i in td_id:
+       edit_todo(i)
+   if print_after_change:
+       print_todo_load(False)
 
 @main.command()
 @click.option("--all", "print_all", is_flag=True,
@@ -268,6 +284,7 @@ def edit(td_id):
 @click.option("--word", default="", 
         help="Print all todos, that contain this word")
 def search(print_all, word, tag, deadline):
+   """Search by --word, --tag, whether has a --deadline"""
    todo_all_dic = load_todo_all()
    todo_selected_dic = {} 
    if tag != "": 
@@ -298,7 +315,6 @@ def search(print_all, word, tag, deadline):
                   td_tmp[i] = v
            todo_selected_dic[f] = td_tmp
 
-   """Print todos"""
    print_todo_all(todo_selected_dic, print_all)
 
 

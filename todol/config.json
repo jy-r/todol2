@@ -1,0 +1,12 @@
+{
+	"dir_path" : "./todo",
+	"date_format" : "%Y-%m-%d",
+	"print_after_change" : false,
+	"cl_header" : 72,
+	"cl_checkbox" :125,
+	"cl_tag" : 125,
+	"cl_deadline" : 108,
+	"cl_message" : 253,
+	"cl_id" : 78,
+	"cl_sepparator" : 166
+}
