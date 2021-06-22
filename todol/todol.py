@@ -6,6 +6,7 @@ import re
 import logging
 import readline
 from datetime import date
+from prompt_toolkit import prompt
 from colored import fg, attr
 from .config import load_config
 
@@ -50,14 +51,16 @@ def load_todo_all():
     return(todo_all_dic)
 
 
-def input_prefill(prompt, text):
-    def hook():
-        readline.insert_text(text)
-        readline.redisplay()
-    readline.set_pre_input_hook(hook)
-    result = input(prompt)
-    readline.set_pre_input_hook()
-    return result
+def input_prefill(prompt_text, text):
+    result = prompt(prompt_text, default="%s" % text)
+    return(result)
+    # def hook():
+    #     readline.insert_text(text)
+    #     readline.redisplay()
+    # readline.set_pre_input_hook(hook)
+    # result = input(prompt)
+    # readline.set_pre_input_hook()
+    # return result
 
 
 def print_todo(todo, print_all=False):

@@ -3,7 +3,8 @@ import setuptools
 
 
 install_requires = [
-    'colorama'
+    'colorama',
+    'prompt_toolkit'
 ]
 
 setuptools.setup(
