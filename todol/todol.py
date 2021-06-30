@@ -9,8 +9,6 @@ from prompt_toolkit import prompt
 from colored import fg, attr
 from .config import load_config
 
-logging.basicConfig(filename='./app.log', filemode='w',
-        format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 config = load_config()
 
@@ -26,6 +24,9 @@ cl_message = fg(config["cl_message"])
 cl_id = fg(config["cl_id"])
 cl_sepparator = fg(config["cl_sepparator"])
 cl_reset = attr('reset')
+
+logging.basicConfig(filename=os.path.join(config['log_path'], './app.log'), filemode='w',
+        format='%(name)s - %(levelname)s - %(message)s', level=logging.DEBUG)
 
 todo_dic = {
         "id": "",
@@ -192,7 +193,7 @@ def readd_todo(td_id):
 def get_last_id():
     files_to_check = os.listdir(dir_path)
     if len(files_to_check) == 0:
-        return(1)
+        return(0)
     ids = []
     for f in files_to_check:
         with open(os.path.join(dir_path, f),"r") as f_read:

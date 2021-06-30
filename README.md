@@ -23,7 +23,7 @@ For more information see `--help`
 ```
 git clone https://github.com/jy-r/todol2
 cd todol2
-pip install ./
+pip install -e ./
 ```
 
 Change the path in `todol2/todol/config.json` to the directory where to-do lists should be saved.

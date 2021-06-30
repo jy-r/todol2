@@ -4,10 +4,12 @@ import sys
 
 def load_config():
 
+    config_path = os.path.join(os.path.dirname(__file__),"config.json")
     config = {
-    	"dir_path" : "/home/jiri/todo",
+    	"dir_path" : "/home/user/todo",
     	"date_format" : "%Y-%m-%d",
     	"print_after_change" : False,
+        "log_path" : config_path, 
     	"show_date" : True,
     	"cl_header" : 72,
     	"cl_checkbox" :125,
@@ -18,7 +20,6 @@ def load_config():
     	"cl_sepparator" : 166
     }
 
-    config_path = os.path.join(os.path.dirname(__file__),"config.json")
     
     try:
         with open(config_path, "r") as config_file:
