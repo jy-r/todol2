@@ -4,7 +4,6 @@ import sys
 import json
 import re
 import logging
-import readline
 from datetime import date
 from prompt_toolkit import prompt
 from colored import fg, attr
@@ -192,6 +191,8 @@ def readd_todo(td_id):
 
 def get_last_id():
     files_to_check = os.listdir(dir_path)
+    if len(files_to_check) == 0:
+        return(1)
     ids = []
     for f in files_to_check:
         with open(os.path.join(dir_path, f),"r") as f_read:
