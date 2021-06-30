@@ -3,8 +3,9 @@ import setuptools
 
 
 install_requires = [
-    'colorama',
-    'prompt_toolkit'
+    'colored',
+    'prompt_toolkit >=3.0.0',
+    'click >=8.0.0'
 ]
 
 setuptools.setup(
